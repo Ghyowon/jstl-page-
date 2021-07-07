@@ -1,0 +1,85 @@
+
+	/* -------------------------------------------------------
+	 * 현재 페이지에 보여울 메세지 목록  얻어올 때
+	 */
+	public List<Message> selectList(int firstRow, int endRow) throws MessageException
+	{
+		Connection	 		con = null;
+		PreparedStatement ps = null;
+		ResultSet rs = null;
+		List<Message> mList = new ArrayList<Message>();
+		boolean isEmpty = true;
+		
+		try{
+			// 1. 연결객체(Connection) 얻어오기
+			con = DriverManager.getConnection(dbUrl,dbUser,dbPass);
+			// 2. sql 문장 만들기  //\r\n ->개행문자
+			String sql = "select *  " + 
+					"from guesttb  " + 
+					"where message_id in (select message_id  " + 
+					"                    from (select rownum as rnum,message_id  " + 
+					"                            from (select message_id from guesttb order by message_id desc))  " + 
+					"                    where rnum>=? and rnum<=? )  " + 
+					"order by message_id desc";
+			// 3. 전송객체 얻어오기
+			ps = con.prepareStatement(sql);
+			ps.setInt(1, firstRow);
+			ps.setInt(2, endRow);
+			// 4. 전송하기
+			rs = ps.executeQuery();
+			
+			while(rs.next()) {//한칸내려가야지 알수있음
+				Message vo = new Message();
+				vo.setMessageId(rs.getInt("message_id"));
+				vo.setGuestName(rs.getString("guest_name"));
+				vo.setPassword(rs.getString("password"));
+				vo.setMessage(rs.getString("message"));
+				mList.add(vo);
+				isEmpty = false;//위에서 내려왔는데도 비어있지 않으면 false, 저장된게 없으면
+			}
+			if( isEmpty ) return Collections.emptyList();
+			
+			return mList;
+		}catch( Exception ex ){
+			throw new MessageException("방명록 ) DB에 목록 검색시 오류  : " + ex.toString() );	
+		} finally{
+			if( rs   != null ) { try{ rs.close();  } catch(SQLException ex){} }
+			if( ps   != null ) { try{ ps.close();  } catch(SQLException ex){} }
+			if( con  != null ) { try{ con.close(); } catch(SQLException ex){} }
+		}		
+	}
+	
+	
+	
+	/* -------------------------------------------------------
+	 * 메세지 전체 레코드 수를 검색
+	 */
+	
+	public int getTotalCount() throws MessageException{
+		Connection	 		con = null;
+		PreparedStatement ps = null;
+		ResultSet rs = null;
+		int count = 0;
+
+		try{
+			//2연결객체 얻어오기
+			con = DriverManager.getConnection(dbUrl,dbUser,dbPass);
+			//3sql문장
+			String sql = "SELECT count(*) as cnt FROM guestTb";
+			//4전송객체 얻어오기
+			ps = con.prepareStatement(sql);
+			//5전송
+			rs = ps.executeQuery();
+			if(rs.next()) { // 다음이 있으면 가져오겠다.
+				count = rs.getInt("cnt");//cnt컬럼값을 가져와주세요
+			}
+			return  count;
+			
+		}catch( Exception ex ){
+			throw new MessageException("방명록 ) DB에 목록 검색시 오류  : " + ex.toString() );	
+		} finally{
+			if( rs   != null ) { try{ rs.close();  } catch(SQLException ex){} }
+			if( ps   != null ) { try{ ps.close();  } catch(SQLException ex){} }
+			if( con  != null ) { try{ con.close(); } catch(SQLException ex){} }
+		}			
+	}
